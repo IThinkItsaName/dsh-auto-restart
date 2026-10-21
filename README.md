@@ -11,7 +11,7 @@
 
 **与官方的关系**：DSH 生产环境没有模型可调用的重启。桌面主进程的 `app.relaunch()` 只出现在崩溃恢复对话框和开发模式菜单；`Restart App and Host` 菜单包在 `...development ? [...] : []` 里，打包版不显示。`dsh_restart` 填的就是这个空档。
 
-> 刷新页面的 `dsh_reload` 已移除（0.1.9）。它会在宿主运行中改写客户端 bundle 时引入 boot 竞态，风险大于收益；客户端半边改完请直接 `dsh_restart` 宿主。
+> 刷新页面的 `dsh_reload` 已移除（0.1.9）。运行中改写客户端 bundle 再 reload 会引入 boot 竞态；客户端半边改完请直接 `dsh_restart` 宿主。
 
 ## 安装
 
@@ -23,7 +23,7 @@ dsh plugin --profile desktop add "file:D:\Program Files (x86)\dsh_manner_space\p
 
 或通过 `plugin_manager` 的 `install_bundle` 使用同一个绝对路径。
 
-首次安装需要**手动重启一次 DSH**，因为 host 行和 `preset-cordis` 覆盖在宿主启动时生效；安装/升级客户端半边后还需要**刷新一次页面**，设置卡片才会出现。之后修改设置值不需要重启或刷新。
+首次安装需要**手动重启一次 DSH**，因为 host 行和 `preset-cordis` 覆盖在宿主启动时生效；安装/升级客户端半边后同样需要**重启一次 DSH**（宿主重启会重载页面并加载新的客户端代码）。之后修改设置值不需要重启。
 
 ## 设置卡片
 
@@ -57,46 +57,21 @@ dsh plugin --profile desktop add "file:D:\Program Files (x86)\dsh_manner_space\p
 
 ## 工作方式
 
-- **journal**：`~/.dsh/dsh-auto-restart/<restartId>/` 下的 `request.json`、`ack.json`、`go.json`、`killing.json`、`relaunched.json`、`host-ready.json`、`results.jsonl`、`completed.json`、`helper.log`、`relaunch.log`。原子写、10 分钟过期、每会话幂等 marker。
-- **helper**：`lib/helper.mjs`，用 Electron-as-Node（或 node）运行；`detached + stdio:ignore`，不会随 host 的进程树一起被杀；桌面模式先杀 Electron 主进程，host 收到 IPC 断开后优雅退出；host 超时才强杀。**绝不使用 `taskkill /T`。**
-- **续跑**：`lib/resume.js` 先 `ctx.sessionController.resolveAgent()` 拿 Agent，再用 `agent.followup(createUserMessage({ source: { kind: 'dsh-auto-restart', form: 'notice' } }))` 注入；Chat 会把它渲染成 **notice**（与后台 job 完成通知同一形制），不占用户气泡。宿主缺少 `resolveAgent` 或 `@deepseek-ai/dsh-llm` 的 `createUserMessage` 时回退到旧的 `sessionController.prompt()` 路径，journal 的 `delivery` 记为 `prompt`。调用方与其他会话文案不同；注入前读 session log 查 marker / notice source，崩溃后重试不会重复。
-- **transcript 修复**：其他会话被中断的 tool call 由 DSH 自带的 `interruptedTurnClosers` 在 resume 时补合成错误结果；插件不伪造 tool 消息。
-- **状态路由**：宿主行注册只读 `GET /plugins/dsh-auto-restart/status.json`，只返回 `{ draftHints }`。浏览器半边加载后轮询（2 s 间隔，最多 3 分钟），看到 `draftHints` 就按最后一条人类消息清理被重启写残留的草稿（`lib/draft-guard.js`，只清"非空且是最后人类消息前缀"的草稿，真正没发的草稿不动），并只应用一次。
+- **journal + helper**：`~/.dsh/dsh-auto-restart/<restartId>/` 下原子写入请求、`go`、`killing`、`results` 等状态；`lib/helper.mjs` 以 `detached + stdio:ignore` 运行，先关 Electron 主进程让 host 优雅退出，host 超时才强杀（**不使用 `taskkill /T`**），再重启应用。
+- **续跑**：`resolveAgent()` + `agent.followup(createUserMessage({ source: { kind: 'dsh-auto-restart', form: 'notice' } }))` 注入 notice（与后台 job 完成通知同一形制，不占用户气泡）；注入前读 session log 查 marker，崩溃重试不会重复。缺少相关 API 时回退到 `sessionController.prompt()`。
+- **草稿清理**：重启后宿主在只读路由 `GET /plugins/dsh-auto-restart/status.json` 发布 `{ draftHints }`；浏览器半边加载后轮询，把"非空且是最后一条人类消息前缀"的残留草稿清掉（`lib/draft-guard.js`，含 IME 公共前缀规则），真正没发的草稿不动。
 
 ## 已知限制
 
 - 打包桌面版是主目标；dev Electron 不自动猜启动命令，必须配置 `launch`。
-- 外部浏览器标签页不会自动跳到新 URL（桌面 host 使用 `--port 0`，端口每次变化）；桌面窗口会由 Electron 主进程重新加载。
-- 重启会让未加载的空闲会话中的定时提醒在新进程中无法触发，直到手动打开那个会话；批准理由会统计已装载提醒数量。
-- 后台 job、终端、MCP 子进程在关机时由宿主 dispose；helper 不做全量孤儿清扫。
-- 如果插件自身把宿主启动弄坏，这个工具也没法从“宿主起不来”中恢复；请先用桌面崩溃恢复禁用插件，或回退 profile patch。
-- 首次安装/升级客户端半边需要刷新页面；只改设置值不需要。
-- notice 呈现依赖 Chat 的 `form: 'notice'` 分类（DSH 0.2.1 起）；升级 DSH 后若该分类变化，续跑会退回普通注入行/用户消息，需要跟着核对。
-- 真实 E2E 会关闭当前 DSH；请从另一个创造模式会话触发，并先跑 `dryRun`。
-- 重启后的草稿清理是**前缀启发式**：只有"非空且是最后一条人类消息的前缀"才清。极小概率下，一个真正没发、又恰好是上一条消息前缀的草稿会被一并清掉；`draftHints` 只应用一次。
+- 桌面 host 使用 `--port 0`，端口每次变化：外部浏览器标签页不会自动跳转，桌面窗口由 Electron 主进程重新加载。
+- 重启会让未加载的空闲会话中的定时提醒在新进程中无法触发，直到手动打开那个会话。
+- notice 呈现依赖 Chat 的 `form: 'notice'` 分类（DSH 0.2.1 起）；升级 DSH 后若分类变化，续跑会退回普通注入行/用户消息。
+- 草稿清理是**前缀启发式**：极小概率下，一个真正没发、又恰好是上一条消息前缀的草稿会被一并清掉。
+- 如果插件自身把宿主启动弄坏，这个工具无法从"宿主起不来"中自救；请用桌面崩溃恢复禁用插件，或回退 profile patch。
 
-## 验证
+## License
 
-```powershell
-node --check lib/index.js
-node --check lib/coordinator.js
-node --check lib/tool.js
-node --check lib/client.js
-node --check lib/helper.mjs
-node --test tests/*.test.mjs   # 沙箱下可能 EPERM；逐文件 node tests/xxx.test.mjs 可绕过
-node scripts/check-preset-drift.mjs
-```
+MIT，见 [LICENSE](LICENSE)。Copyright (c) 2026 IThinkItsaName。
 
-手动验收：
-
-1. 安装并手动重启一次；刷新页面，确认 Settings → Plugins 里有卡片。
-2. 新建创造模式会话，调用 `dsh_restart(dryRun=true)`，确认快照/权限/启动命令。
-3. 改一段提示词保存，确认 DSH 没有重启；再调用真实重启，确认新文案生效。
-4. 在 workspace-write 会话把权限设为 `danger-full-access`，确认出现提权批准；批准被拒时 DSH 不重启。
-5. 重启后确认调用方与其他活动会话各收到恰好一条 marker 消息，空闲会话没有新消息。
-
-## 回退
-
-1. `dsh plugin --profile desktop remove dsh-auto-restart`（或 `plugin_manager` 移除 bundle）。
-2. 恢复 profile `cordis.patch.yml` 的备份（如果安装时改过）。
-3. 若创造模式因 preset 覆盖损坏不可用，用桌面崩溃恢复里的“禁用插件”入口，或手工移除 bundle 行后重启。
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

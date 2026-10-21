@@ -2,6 +2,11 @@
   "name": "dsh-auto-restart",
   "version": "0.1.9",
   "description": "Creation-mode DSH restart tool: records active sessions, restarts the host from a detached helper, and resumes callers/others with editable user-role notices. Includes a settings card for permission policy and resume prompts.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/IThinkItsaName/dsh-auto-restart.git"
+  },
   "private": true,
   "type": "module",
   "main": "lib/index.js",
