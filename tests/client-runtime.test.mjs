@@ -12,7 +12,7 @@ const source = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8'
  */
 function boot({ fetchImpl, draft = '那你可以直接cho' }) {
   let definition
-  const calls = { setDraft: [], reload: 0, urls: [], card: null }
+  const calls = { setDraft: [], urls: [], card: null }
   const context = {
     console,
     Date,
@@ -40,7 +40,6 @@ function boot({ fetchImpl, draft = '那你可以直接cho' }) {
   }
   context.window = {
     __ModuleLoader__: { load: (loaded) => { definition = loaded } },
-    location: { reload: () => { calls.reload += 1 } },
     setInterval: () => 1,
     clearInterval: () => {},
     addEventListener: () => {},
@@ -89,8 +88,6 @@ test('client boot clears a stale IME draft from the status hints', async () => {
     fetchImpl: async () => ({
       ok: true,
       json: async () => ({
-        reloadAt: 0,
-        reloadToken: '',
         draftHints: {
           at: Date.now(),
           sessions: [{ sessionId: 's1', lastUserText: '那你可以直接重启嘛' }],
@@ -100,18 +97,7 @@ test('client boot clears a stale IME draft from the status hints', async () => {
   })
   await new Promise((resolve) => setTimeout(resolve, 10))
   assert.deepEqual(calls.setDraft, [''])
-  assert.match(calls.urls[0], /\?boot=/u)
-})
-
-test('client boot reloads the page when a reload request is newer than the page', async () => {
-  const { calls } = boot({
-    fetchImpl: async () => ({
-      ok: true,
-      json: async () => ({ reloadAt: Date.now() + 1000, reloadToken: 't', draftHints: { at: 0, sessions: [] } }),
-    }),
-  })
-  await new Promise((resolve) => setTimeout(resolve, 10))
-  assert.equal(calls.reload, 1)
+  assert.equal(calls.urls[0], '/plugins/dsh-auto-restart/status.json')
 })
 
 function renderNode(node) {
@@ -127,7 +113,7 @@ function renderNode(node) {
   renderNode(node.props?.children)
 }
 
-test('settings card renders every section with the dsh-lore row layout', () => {
+test('settings card renders every row with the dsh-lore row layout', () => {
   const { calls } = boot({ fetchImpl: async () => ({ ok: false }) })
   assert.equal(typeof calls.card, 'function')
   const labels = []
@@ -141,7 +127,6 @@ test('settings card renders every section with the dsh-lore row layout', () => {
         permissionPolicy: 'workspace-write',
         confirm: true,
         resumeOthers: true,
-        reloadEnabled: false,
         callerResumePrompt: 'caller',
         otherResumePrompt: 'other',
       },
@@ -150,8 +135,9 @@ test('settings card renders every section with the dsh-lore row layout', () => {
     reset: async () => true,
   })
   renderNode(element)
-  for (const key of ['permission.label', 'confirm.label', 'resumeOthers.label', 'reload.label', 'reload.hint', 'caller.label', 'other.label']) {
+  for (const key of ['permission.label', 'confirm.label', 'resumeOthers.label', 'caller.label', 'other.label']) {
     assert.ok(labels.includes(key), `missing label ${key}`)
   }
   assert.equal(labels.some((key) => key.startsWith('section.')), false, 'section headings were removed')
+  assert.equal(labels.some((key) => key.startsWith('reload.')), false, 'reload row was removed')
 })

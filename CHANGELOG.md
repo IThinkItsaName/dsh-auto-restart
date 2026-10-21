@@ -1,8 +1,14 @@
 # Changelog
 
+## 0.1.9
+
+- Removed `dsh_reload` and all reload plumbing: `reloadEnabled`, the reload request state/gate, the per-page boot heartbeat, and the `location.reload()` path. Editing a linked client bundle under a live host and then reloading raced DSH's boot and crashed it twice; a host restart is the supported way to load client-side changes.
+- Settings card is now the single-level list (no section headings or footer notes) and no longer carries the reload switch.
+- The read-only status route stays for post-restart draft hints only: the browser polls it for up to 3 minutes, applies the hints once, then stops.
+
 ## 0.1.8
 
-- Simplify the settings card to a single-level list: removed the three section headings (重启 / 页面刷新 / 续跑提示词) and the two footer notes. Each row keeps only its label, the field hint and the control; the reload switch now sits with the other switches above the two resume prompts.
+- Simplify the settings card to a single-level list: removed the three section headings (重启 / 页面刷新 / 续跑提示词) and the two footer notes. Each row keeps only its label, the field hint and the control.
 
 ## 0.1.7
 

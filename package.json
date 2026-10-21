@@ -1,6 +1,6 @@
 {
   "name": "dsh-auto-restart",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Creation-mode DSH restart tool: records active sessions, restarts the host from a detached helper, and resumes callers/others with editable user-role notices. Includes a settings card for permission policy and resume prompts.",
   "private": true,
   "type": "module",
