@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.8
+
+- Simplify the settings card to a single-level list: removed the three section headings (重启 / 页面刷新 / 续跑提示词) and the two footer notes. Each row keeps only its label, the field hint and the control; the reload switch now sits with the other switches above the two resume prompts.
+
 ## 0.1.7
 
 - `dsh_reload` is now opt-in: new `reloadEnabled` setting (default **off**) in the plugins settings card. While off the tool refuses with a message pointing at the switch; the value is read live through a gate, so toggling it needs no restart.

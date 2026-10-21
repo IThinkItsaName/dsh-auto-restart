@@ -150,7 +150,8 @@ test('settings card renders every section with the dsh-lore row layout', () => {
     reset: async () => true,
   })
   renderNode(element)
-  for (const key of ['section.restart', 'section.reload', 'section.prompts', 'reload.label', 'reload.hint', 'permission.label']) {
+  for (const key of ['permission.label', 'confirm.label', 'resumeOthers.label', 'reload.label', 'reload.hint', 'caller.label', 'other.label']) {
     assert.ok(labels.includes(key), `missing label ${key}`)
   }
+  assert.equal(labels.some((key) => key.startsWith('section.')), false, 'section headings were removed')
 })
