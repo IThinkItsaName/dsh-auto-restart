@@ -1,5 +1,7 @@
 # dsh-auto-restart
 
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+
 创造模式（`cordis` preset）中的 DSH 自动重启工具。**工具描述里写明了准入规则：只有确认「必须重启才能达到目的」且没有更简单的替代方案（重载组件、改配置、新开会话、重试等）时才调用。** 模型调用 `dsh_restart` 后：
 
 1. 记录调用方与其他活动会话（含排队输入、运行中 job、已装载提醒的计数）；
@@ -73,5 +75,3 @@ dsh plugin --profile desktop add "file:D:\Program Files (x86)\dsh_manner_space\p
 ## License
 
 MIT，见 [LICENSE](LICENSE)。Copyright (c) 2026 IThinkItsaName。
-
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
